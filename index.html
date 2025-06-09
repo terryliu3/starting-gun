@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        #timer { font-size: 36px; margin: 20px; }
+        .flash { background-color: red !important; }
+    </style>
+</head>
+<body>
+    <div>
+        <input type="number" id="a" value="2" step="0.1"> 
+        <input type="number" id="b" value="4" step="0.1">
+    </div>
+    <div id="timer">00:00:00.000</div>
+    <div>
+        <button id="start">开始</button>
+        <button id="stop">停止</button>
+        <button id="reset">重置</button>
+    </div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let startTime, timerId, lastBeepSecond;
+
+document.getElementById('start').addEventListener('click', async () => {
+    const a = parseFloat(document.getElementById('a').value);
+    const b = parseFloat(document.getElementById('b').value);
+    await audioCtx.resume();
+    
+    // 播放三段提示音
+    await playBeep(200, 0.5);
+    await delay(getRandom(a, b));
+    await playBeep(400, 0.5);
+    await delay(getRandom(a, b));
+    
+    // 发令枪响
+    playBeep(800, 0.1);
+    flashScreen();
+    startTimer();
+});
+
+document.getElementById('stop').addEventListener('click', () => {
+    stopTimer();
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+    stopTimer();
+    document.getElementById('timer').textContent = '00:00:00.000';
+});
+
+function getRandom(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+function playBeep(freq, duration) {
+    return new Promise(resolve => {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        
+        oscillator.start();
+        setTimeout(() => {
+            oscillator.stop();
+            resolve();
+        }, duration * 1000);
+    });
+}
+
+function flashScreen() {
+    document.body.classList.add('flash');
+    setTimeout(() => document.body.classList.remove('flash'), 50);
+}
+
+function startTimer() {
+    startTime = Date.now();
+    lastBeepSecond = -1;
+    timerId = requestAnimationFrame(updateTimer);
+}
+
+function stopTimer() {
+    cancelAnimationFrame(timerId);
+}
+
+function updateTimer() {
+    const elapsed = Date.now() - startTime;
+    const seconds = elapsed / 1000;
+    
+    // 更新计时显示
+    const fmt = n => n.toString().padStart(2,'0');
+    document.getElementById('timer').textContent = 
+        `${fmt(Math.floor(seconds/60))}:${fmt(Math.floor(seconds%60))}:${(elapsed%1000).toString().padStart(3,'0')}`;
+    
+    // 每秒蜂鸣
+    const currentSecond = Math.floor(seconds);
+    if(currentSecond !== lastBeepSecond) {
+        lastBeepSecond = currentSecond;
+        playBeep(600, 0.1);
+    }
+    
+    timerId = requestAnimationFrame(updateTimer);
+}
+
+function delay(seconds) {
+    return new Promise(resolve => setTimeout(resolve, seconds*1000));
+}
+</script>
+</body>
+</html>
